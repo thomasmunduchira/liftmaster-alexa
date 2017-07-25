@@ -15,8 +15,5 @@
   "bugs": {
     "url": "https://github.com/thomasmunduchira/liftmaster-alexa/issues"
   },
-  "homepage": "https://github.com/thomasmunduchira/liftmaster-alexa#readme",
-  "dependencies": {
-    "alexa-sdk": "^1.0.11"
-  }
+  "homepage": "https://github.com/thomasmunduchira/liftmaster-alexa#readme"
 }
