@@ -1,16 +1,19 @@
 // namespaces
 const NAMESPACE_DISCOVERY = 'Alexa.ConnectedHome.Discovery';
 const NAMESPACE_CONTROL = 'Alexa.ConnectedHome.Control';
+const NAMESPACE_QUERY = 'Alexa.ConnectedHome.Query';
 
 // discovery
 const REQUEST_DISCOVER = 'DiscoverAppliancesRequest';
 const RESPONSE_DISCOVER = 'DiscoverAppliancesResponse';
 
 // control
-const REQUEST_TURN_ON = 'TurnOnRequest';
-const RESPONSE_TURN_ON = 'TurnOnConfirmation';
-const REQUEST_TURN_OFF = 'TurnOffRequest';
-const RESPONSE_TURN_OFF = 'TurnOffConfirmation';
+const REQUEST_SET_STATE = 'SetLockStateRequest';
+const RESPONSE_SET_STATE = 'SetLockStateConfirmation';
+
+// query
+const REQUEST_GET_STATE = 'GetLockStateRequest';
+const RESPONSE_GET_STATE = 'GetLockStateResponse';
 
 // errors
 const ERROR_UNSUPPORTED_OPERATION = 'UnsupportedOperationError';
@@ -55,19 +58,13 @@ const handleDiscovery = (event) => {
   return createDirective(header, payload);
 }
 
-const handleControlTurnOff = (event) => {
-  const header = createHeader(NAMESPACE_CONTROL, RESPONSE_TURN_OFF);
-  const payload = {};
-  return createDirective(header, payload);
-}
-
-const handleControlTurnOn = (event) => {
+const handleControlSetState = (event) => {
   const header = createHeader(NAMESPACE_CONTROL, RESPONSE_TURN_ON);
   const payload = {};
   return createDirective(header, payload);
 }
 
-const handleUnsupportedOperation = () => {
+const handleUnsupportedControlOperation = () => {
   const header = createHeader(NAMESPACE_CONTROL, ERROR_UNSUPPORTED_OPERATION);
   const payload = {};
   return createDirective(header, payload);
@@ -77,15 +74,39 @@ const handleControl = (event) => {
   let response = null;
   const requestedName = event.header.name;
   switch (requestedName) {
-    case REQUEST_TURN_ON:
-      response = handleControlTurnOn(event);
-      break;
-    case REQUEST_TURN_OFF:
-      response = handleControlTurnOff(event);
+    case REQUEST_SET_STATE:
+      response = handleControlSetState(event);
       break;
     default:
       log('Error', 'Unsupported operation' + requestedName);
-      response = handleUnsupportedOperation();
+      response = handleUnsupportedControlOperation();
+      break;
+  }
+  return response;
+}
+
+const handleQueryGetState = (event) => {
+  const header = createHeader(NAMESPACE_QUERY, RESPONSE_TURN_ON);
+  const payload = {};
+  return createDirective(header, payload);
+}
+
+const handleUnsupportedQueryOperation = () => {
+  const header = createHeader(NAMESPACE_QUERY, ERROR_UNSUPPORTED_OPERATION);
+  const payload = {};s
+  return createDirective(header, payload);
+}
+
+const handleQuery = (event) => {
+  let response = null;
+  const requestedName = event.header.name;
+  switch (requestedName) {
+    case QUERY_GET_STATE:
+      response = handleQueryGetState(event);
+      break;
+    default:
+      log('Error', 'Unsupported operation' + requestedName);
+      response = handleUnsupportedQueryOperation();
       break;
   }
   return response;
@@ -111,6 +132,9 @@ exports.handler = (event, context, callback) => {
         break;
       case NAMESPACE_CONTROL:
         response = handleControl(event);
+        break;
+      case NAMESPACE_QUERY:
+        response = handleQuery(event);
         break;
       default:
         log('Error', 'Unsupported namespace: ' + requestedNamespace);
