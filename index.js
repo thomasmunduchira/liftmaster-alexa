@@ -26,7 +26,7 @@ const ERROR_UNSUPPORTED_OPERATION = 'UnsupportedOperationError';
 const ERROR_UNEXPECTED_INFO = 'UnexpectedInformationReceivedError';
 
 // API
-const endpoint = 'https://liftmaster.thomasmunduchira.com';
+const endpoint = 'https://myq.thomasmunduchira.com';
 
 // support functions
 const log = (title, msg) => {
