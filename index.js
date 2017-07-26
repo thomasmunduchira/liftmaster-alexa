@@ -106,22 +106,62 @@ const handleDiscovery = (event) => {
     });
 }
 
+const setState = (accessToken, id, state) => {
+  return request({
+      method: 'PUT',
+      uri: endpoint + '/door/state',
+      headers: {
+        Authorization: 'Bearer ' + accessToken
+      },
+      body: {
+        id,
+        state
+      },
+      json: true
+    }).then((result) => {
+      return result;
+    }).catch((err) => {
+      console.log('setState - Error', err);
+    });
+}
+
 const handleControlSetState = (event) => {
-  const header = createHeader(NAMESPACE_CONTROL, RESPONSE_TURN_ON);
-  const payload = {};
-  return createDirective(header, payload);
+  const { accessToken, appliance, lockState } = event.payload;
+  const state = lockState === 'LOCKED' ? 0 : 1;
+  return setState(accessToken, appliance.applianceId, state)
+    .then((result) => {
+      if (result.returnCode === 0) {
+        const header = createHeader(NAMESPACE_CONTROL, RESPONSE_SET_STATE);
+        const payload = {
+          lockState
+        };
+        return createDirective(header, payload);
+      }
+    });
 }
 
 const handleControlTurnOn = (event) => {
-  const header = createHeader(NAMESPACE_CONTROL, RESPONSE_TURN_ON);
-  const payload = {};
-  return createDirective(header, payload);
+  const { accessToken, appliance } = event.payload;
+  return setState(accessToken, appliance.applianceId, 1)
+    .then((result) => {
+      if (result.returnCode === 0) {
+        const header = createHeader(NAMESPACE_CONTROL, RESPONSE_TURN_ON);
+        const payload = {};
+        return createDirective(header, payload);
+      }
+    });
 }
 
 const handleControlTurnOff = (event) => {
-  const header = createHeader(NAMESPACE_CONTROL, RESPONSE_TURN_ON);
-  const payload = {};
-  return createDirective(header, payload);
+  const { accessToken, appliance } = event.payload;
+  return setState(accessToken, appliance.applianceId, 0)
+    .then((result) => {
+      if (result.returnCode === 0) {
+        const header = createHeader(NAMESPACE_CONTROL, RESPONSE_TURN_OFF);
+        const payload = {};
+        return createDirective(header, payload);
+      }
+    });
 }
 
 const handleUnsupportedControlOperation = () => {
@@ -176,7 +216,6 @@ const handleQueryGetState = (event) => {
       if (returnCode === 0) {
         const header = createHeader(NAMESPACE_QUERY, RESPONSE_GET_STATE);
         const payload = {
-          accessToken,
           lockState: state === 2 ? 'LOCKED' : 'UNLOCKED'
         };
         return createDirective(header, payload);
@@ -227,27 +266,27 @@ exports.handler = (event, context, callback) => {
         return handleDiscovery(event)
           .then((response) => {
             console.log(response);
-            callback(null, response);
+            return callback(null, response);
           });
         break;
       case NAMESPACE_CONTROL:
         return handleControl(event)
           .then((response) => {
             console.log(response);
-            callback(null, response);
+            return callback(null, response);
           });
         break;
       case NAMESPACE_QUERY:
         return handleQuery(event)
           .then((response) => {
             console.log(response);
-            callback(null, response);
+            return callback(null, response);
           });
         break;
       default:
         log('Error', 'Unsupported namespace: ' + requestedNamespace);
         const response = handleUnexpectedInfo(requestedNamespace);
-        callback(null, response);
+        return callback(null, response);
         break;
     }
   } catch (error) {
