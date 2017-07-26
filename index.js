@@ -53,8 +53,6 @@ const createHeader = (namespace, name) => {
 }
 
 const createDirective = (header, payload) => {
-  console.log('header', header);
-  console.log('payload', payload);
   return {
     header,
     payload
@@ -62,12 +60,12 @@ const createDirective = (header, payload) => {
 }
 
 const handleDiscovery = (event) => {
-  const access_token = event.payload.accessToken;
+  const { accessToken } = event.payload;
   return request({
       method: 'GET',
       uri: endpoint + '/doors',
       headers: {
-        Authorization: 'Bearer ' + access_token
+        Authorization: 'Bearer ' + accessToken
       },
       json: true
     }).then((result) => {
@@ -136,19 +134,19 @@ const handleControl = (event) => {
   const requestedName = event.header.name;
   switch (requestedName) {
     case REQUEST_SET_STATE:
-      handleControlSetState(event)
+      return handleControlSetState(event)
         .then((response) => {
           return response;
         });
       break;
     case REQUEST_TURN_ON:
-      handleControlTurnOn(event)
+      return handleControlTurnOn(event)
         .then((response) => {
           return response;
         });
       break;
     case REQUEST_TURN_OFF:
-      handleControlTurnOff(event)
+      return handleControlTurnOff(event)
         .then((response) => {
           return response;
         });
@@ -162,35 +160,43 @@ const handleControl = (event) => {
 }
 
 const handleQueryGetState = (event) => {
-  const header = createHeader(NAMESPACE_QUERY, RESPONSE_TURN_ON);
+  const { accessToken, appliance } = event.payload;
   return request({
       method: 'GET',
-      uri: endpoint + '/api/v4/User/Validate',
+      uri: endpoint + '/door/state',
       headers: {
-        MyQApplicationId: appId
+        Authorization: 'Bearer ' + accessToken
       },
-      body: {
-        username: this.username,
-        password: this.password
+      qs: {
+        id: appliance.applianceId
       },
       json: true
-    }).then((response) => {
-      const payload = {};
-      return createDirective(header, payload);
+    }).then((result) => {
+      const { returnCode, state, error } = result;
+      if (returnCode === 0) {
+        const header = createHeader(NAMESPACE_QUERY, RESPONSE_GET_STATE);
+        const payload = {
+          accessToken,
+          lockState: state === 2 ? 'LOCKED' : 'UNLOCKED'
+        };
+        return createDirective(header, payload);
+      }
+    }).catch((err) => {
+      console.log('handleQueryGetState - Error', err);
     });
 }
 
 const handleUnsupportedQueryOperation = () => {
   const header = createHeader(NAMESPACE_QUERY, ERROR_UNSUPPORTED_OPERATION);
-  const payload = {};s
+  const payload = {};
   return createDirective(header, payload);
 }
 
 const handleQuery = (event) => {
   const requestedName = event.header.name;
   switch (requestedName) {
-    case QUERY_GET_STATE:
-      handleQueryGetState(event)
+    case REQUEST_GET_STATE:
+      return handleQueryGetState(event)
         .then((response) => {
           return response;
         });
@@ -218,20 +224,23 @@ exports.handler = (event, context, callback) => {
   try {
     switch (requestedNamespace) {
       case NAMESPACE_DISCOVERY:
-        handleDiscovery(event)
+        return handleDiscovery(event)
           .then((response) => {
+            console.log(response);
             callback(null, response);
           });
         break;
       case NAMESPACE_CONTROL:
-        response = handleControl(event)
+        return handleControl(event)
           .then((response) => {
+            console.log(response);
             callback(null, response);
           });
         break;
       case NAMESPACE_QUERY:
-        response = handleQuery(event)
+        return handleQuery(event)
           .then((response) => {
+            console.log(response);
             callback(null, response);
           });
         break;
