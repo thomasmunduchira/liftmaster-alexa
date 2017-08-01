@@ -72,17 +72,19 @@ const handleDiscovery = (event) => {
       const { returnCode, doors, error } = result;
       if (returnCode === 0) {
         const discoveredAppliances = [];
+        let index = 1;
         for (let door of doors) {
+          const doorName = door.name === "" ? "Door " + index : door.name;
           const discoveredAppliance = {
             applianceTypes: [
                'SMARTLOCK',
                'SWITCH'
             ],
             applianceId: door.id,
-            manufacturerName: 'LiftMaster',
+            manufacturerName: 'Chamberlain/LiftMaster',
             modelName: door.type,
             version: '1.00',
-            friendlyName: door.name,
+            friendlyName: doorName,
             friendlyDescription: door.type,
             isReachable: true,
             actions: [
@@ -93,16 +95,20 @@ const handleDiscovery = (event) => {
             ],
             additionalApplianceDetails: {}
           };
+          if (doorName !== door.name) {
+            index++;
+          }
           discoveredAppliances.push(discoveredAppliance);
         }
         const header = createHeader(NAMESPACE_DISCOVERY, RESPONSE_DISCOVER);
         const payload = {
           discoveredAppliances
         };
+        log('DISCOVER', discoveredAppliances);
         return createDirective(header, payload);
       }
     }).catch((err) => {
-      console.log('handleDiscovery - Error', err);
+      log('handleDiscovery - Error', err);
     });
 }
 
@@ -121,7 +127,7 @@ const setState = (accessToken, id, state) => {
     }).then((result) => {
       return result;
     }).catch((err) => {
-      console.log('setState - Error', err);
+      log('setState - Error', err);
     });
 }
 
@@ -130,6 +136,7 @@ const handleControlSetState = (event) => {
   const state = lockState === 'LOCKED' ? 0 : 1;
   return setState(accessToken, appliance.applianceId, state)
     .then((result) => {
+      log('CHANGE', result);
       if (result.returnCode === 0) {
         const header = createHeader(NAMESPACE_CONTROL, RESPONSE_SET_STATE);
         const payload = {
@@ -144,6 +151,7 @@ const handleControlTurnOn = (event) => {
   const { accessToken, appliance } = event.payload;
   return setState(accessToken, appliance.applianceId, 1)
     .then((result) => {
+      log('OPEN', result);
       if (result.returnCode === 0) {
         const header = createHeader(NAMESPACE_CONTROL, RESPONSE_TURN_ON);
         const payload = {};
@@ -156,6 +164,7 @@ const handleControlTurnOff = (event) => {
   const { accessToken, appliance } = event.payload;
   return setState(accessToken, appliance.applianceId, 0)
     .then((result) => {
+      log('CLOSE', result);
       if (result.returnCode === 0) {
         const header = createHeader(NAMESPACE_CONTROL, RESPONSE_TURN_OFF);
         const payload = {};
@@ -218,10 +227,11 @@ const handleQueryGetState = (event) => {
         const payload = {
           lockState: state === 2 ? 'LOCKED' : 'UNLOCKED'
         };
+        log('QUERY GET STATE', payload);
         return createDirective(header, payload);
       }
     }).catch((err) => {
-      console.log('handleQueryGetState - Error', err);
+      log('handleQueryGetState - Error', err);
     });
 }
 
@@ -258,28 +268,25 @@ const handleUnexpectedInfo = (fault) => {
 
 // entry
 exports.handler = (event, context, callback) => {
-  log('Received Directive', event);
+  // log('Received Directive', event);
   const requestedNamespace = event.header.namespace;
   try {
     switch (requestedNamespace) {
       case NAMESPACE_DISCOVERY:
         return handleDiscovery(event)
           .then((response) => {
-            console.log(response);
             return callback(null, response);
           });
         break;
       case NAMESPACE_CONTROL:
         return handleControl(event)
           .then((response) => {
-            console.log(response);
             return callback(null, response);
           });
         break;
       case NAMESPACE_QUERY:
         return handleQuery(event)
           .then((response) => {
-            console.log(response);
             return callback(null, response);
           });
         break;
