@@ -26,7 +26,7 @@ const ERROR_UNSUPPORTED_OPERATION = 'UnsupportedOperationError';
 const ERROR_UNEXPECTED_INFO = 'UnexpectedInformationReceivedError';
 
 // API
-const endpoint = 'https://myq.thomasmunduchira.com';
+const endpoint = 'https://garage.thomasmunduchira.com';
 
 // support functions
 const log = (title, msg) => {
@@ -63,61 +63,90 @@ const handleDiscovery = (event) => {
   const { accessToken } = event.payload;
   return request({
       method: 'GET',
-      uri: endpoint + '/doors',
+      uri: `${endpoint}/devices`,
       headers: {
-        Authorization: 'Bearer ' + accessToken
+        Authorization: `Bearer ${accessToken}`
       },
       json: true
     }).then((result) => {
-      const { returnCode, doors, error } = result;
+      const { returnCode, devices, error } = result;
+      const discoveredAppliances = [];
+      let index = 1;
       if (returnCode === 0) {
-        const discoveredAppliances = [];
-        let index = 1;
-        for (let door of doors) {
-          const doorName = door.name === "" ? "Door " + index : door.name;
-          const discoveredAppliance = {
-            applianceTypes: [
+        for (let device of devices) {
+          if (!device.id) {
+            break;
+          }
+
+          let applianceTypes;
+          const actions =  [
+            'turnOff',
+            'turnOn'
+          ];
+          if (device.typeId === 3) {
+            applianceTypes = [
+               'LIGHT'
+            ]
+          } else {
+            applianceTypes = [
                'SMARTLOCK',
                'SWITCH'
-            ],
-            applianceId: door.id,
-            manufacturerName: 'Chamberlain/LiftMaster',
-            modelName: door.type,
-            version: '1.00',
-            friendlyName: doorName,
-            friendlyDescription: door.type,
-            isReachable: true,
-            actions: [
+            ];
+            actions.concat([
               'getLockState',
-              'setLockState',
-              'turnOff',
-              'turnOn'
-            ],
-            additionalApplianceDetails: {}
-          };
-          if (doorName !== door.name) {
-            index++;
+              'setLockState'
+            ]);
           }
+
+          const deviceName = device.name === '' ? 'Device ' + index : device.name;
+          const typeName = device.typeName === '' ? 'MyQ Device': device.typeName;
+          const online = device.online === true;
+
+          const discoveredAppliance = {
+            applianceTypes,
+            applianceId: device.id,
+            manufacturerName: 'Chamberlain/LiftMaster',
+            modelName: typeName,
+            version: '1.00',
+            friendlyName: deviceName,
+            friendlyDescription: typeName,
+            isReachable: online,
+            actions,
+            additionalApplianceDetails: {
+              typeId: device.typeId
+            }
+
+            if (deviceName !== device.name) {
+              index++;
+            }
+          };
           discoveredAppliances.push(discoveredAppliance);
         }
-        const header = createHeader(NAMESPACE_DISCOVERY, RESPONSE_DISCOVER);
-        const payload = {
-          discoveredAppliances
-        };
-        log('DISCOVER', discoveredAppliances);
-        return createDirective(header, payload);
       }
+      log('DISCOVER', discoveredAppliances);
+      const header = createHeader(NAMESPACE_DISCOVERY, RESPONSE_DISCOVER);
+      const payload = {
+        discoveredAppliances
+      };
+      return createDirective(header, payload);
     }).catch((err) => {
       log('handleDiscovery - Error', err);
     });
 }
 
-const setState = (accessToken, id, state) => {
+const setState = (accessToken, id, typeId, state) => {
+  let type;
+  if (typeId === 3) {
+    type = 'light'
+  } else {
+    type = 'door';
+  }
+
   return request({
       method: 'PUT',
-      uri: endpoint + '/door/state',
+      uri: `${endpoint}/${type}/state`,
       headers: {
-        Authorization: 'Bearer ' + accessToken
+        Authorization: `Bearer ${accessToken}`
       },
       body: {
         id,
@@ -134,7 +163,7 @@ const setState = (accessToken, id, state) => {
 const handleControlSetState = (event) => {
   const { accessToken, appliance, lockState } = event.payload;
   const state = lockState === 'LOCKED' ? 0 : 1;
-  return setState(accessToken, appliance.applianceId, state)
+  return setState(accessToken, appliance.applianceId, appliance.additionalApplianceDetails.typeId, state)
     .then((result) => {
       log('CHANGE', result);
       if (result.returnCode === 0) {
@@ -149,7 +178,7 @@ const handleControlSetState = (event) => {
 
 const handleControlTurnOn = (event) => {
   const { accessToken, appliance } = event.payload;
-  return setState(accessToken, appliance.applianceId, 1)
+  return setState(accessToken, appliance.applianceId, appliance.additionalApplianceDetails.typeId, 1)
     .then((result) => {
       log('OPEN', result);
       if (result.returnCode === 0) {
@@ -162,7 +191,7 @@ const handleControlTurnOn = (event) => {
 
 const handleControlTurnOff = (event) => {
   const { accessToken, appliance } = event.payload;
-  return setState(accessToken, appliance.applianceId, 0)
+  return setState(accessToken, appliance.applianceId, appliance.additionalApplianceDetails.typeId, 0)
     .then((result) => {
       log('CLOSE', result);
       if (result.returnCode === 0) {
@@ -212,9 +241,9 @@ const handleQueryGetState = (event) => {
   const { accessToken, appliance } = event.payload;
   return request({
       method: 'GET',
-      uri: endpoint + '/door/state',
+      uri: `${endpoint}/door/state`,
       headers: {
-        Authorization: 'Bearer ' + accessToken
+        Authorization: `Bearer ${accessToken}`
       },
       qs: {
         id: appliance.applianceId
@@ -268,7 +297,7 @@ const handleUnexpectedInfo = (fault) => {
 
 // entry
 exports.handler = (event, context, callback) => {
-  // log('Received Directive', event);
+  log('Received Directive', event);
   const requestedNamespace = event.header.namespace;
   try {
     switch (requestedNamespace) {
