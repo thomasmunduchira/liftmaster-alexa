@@ -30,7 +30,7 @@ const endpoint = 'https://garage.thomasmunduchira.com';
 
 // support functions
 const log = (title, msg) => {
-  console.log('**** ' + title + ': ' + JSON.stringify(msg));
+  console.log(`**** ${title}: ${JSON.stringify(msg)}`);
 }
 
 const createMessageId = () => {
@@ -79,20 +79,20 @@ const handleDiscovery = (event) => {
           }
 
           let applianceTypes;
-          const actions =  [
+          let actions =  [
             'turnOff',
             'turnOn'
           ];
           if (device.typeId === 3) {
             applianceTypes = [
                'LIGHT'
-            ]
+            ];
           } else {
             applianceTypes = [
                'SMARTLOCK',
                'SWITCH'
             ];
-            actions.concat([
+            actions = actions.concat([
               'getLockState',
               'setLockState'
             ]);
@@ -115,11 +115,10 @@ const handleDiscovery = (event) => {
             additionalApplianceDetails: {
               typeId: device.typeId
             }
-
-            if (deviceName !== device.name) {
-              index++;
-            }
           };
+          if (deviceName !== device.name) {
+            index++;
+          }
           discoveredAppliances.push(discoveredAppliance);
         }
       }
@@ -230,7 +229,7 @@ const handleControl = (event) => {
         });
       break;
     default:
-      log('Error', 'Unsupported operation' + requestedName);
+      log('Error', `Unsupported operation ${requestedName}`);
       const response = handleUnsupportedControlOperation();
       return response;
       break;
@@ -250,11 +249,11 @@ const handleQueryGetState = (event) => {
       },
       json: true
     }).then((result) => {
-      const { returnCode, state, error } = result;
+      const { returnCode, doorState, error } = result;
       if (returnCode === 0) {
         const header = createHeader(NAMESPACE_QUERY, RESPONSE_GET_STATE);
         const payload = {
-          lockState: state === 2 ? 'LOCKED' : 'UNLOCKED'
+          lockState: doorState === 2 ? 'LOCKED' : 'UNLOCKED'
         };
         log('QUERY GET STATE', payload);
         return createDirective(header, payload);
@@ -280,7 +279,7 @@ const handleQuery = (event) => {
         });
       break;
     default:
-      log('Error', 'Unsupported operation' + requestedName);
+      log('Error', `Unsupported operation ${requestedName}`);
       const response = handleUnsupportedQueryOperation();
       return response;
       break;
@@ -320,7 +319,7 @@ exports.handler = (event, context, callback) => {
           });
         break;
       default:
-        log('Error', 'Unsupported namespace: ' + requestedNamespace);
+        log('Error', `Unsupported namespace: ${requestedNamespace}`);
         const response = handleUnexpectedInfo(requestedNamespace);
         return callback(null, response);
         break;
