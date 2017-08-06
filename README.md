@@ -1,2 +1,4 @@
 # myq-alexa
-An Alexa skill to control your garage
+An Alexa skill to control your MyQ-Enabled devices.
+
+Pull requests welcome!
