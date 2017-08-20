@@ -1,10 +1,6 @@
 {
   "extends": [
-    "airbnb-base",
-    "plugin:promise/recommended"
-  ],
-  "plugins": [
-    "promise"
+    "airbnb-base"
   ],
   "rules": {
     "no-console": 0,
