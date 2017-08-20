@@ -23,6 +23,7 @@ const RESPONSE_GET_STATE = 'GetLockStateResponse';
 // errors
 const ERROR_UNSUPPORTED_OPERATION = 'UnsupportedOperationError';
 const ERROR_UNEXPECTED_INFO = 'UnexpectedInformationReceivedError';
+const ERROR_EXPIRED_ACCESS_TOKEN = 'ExpiredAccessTokenError';
 
 // API
 const endpoint = 'https://myq.thomasmunduchira.com';
@@ -33,11 +34,13 @@ const log = (title, message) => {
 };
 
 const createMessageId = () => {
-  let d = new Date().getTime();
+  let d = new Date()
+    .getTime();
   const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = (d + Math.random() * 16) % 16 | 0;
     d = Math.floor(d / 16);
-    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    return (c === 'x' ? r : (r & 0x3 | 0x8))
+      .toString(16);
   });
   return uuid;
 };
@@ -54,81 +57,94 @@ const createDirective = (header, payload) => ({
   payload,
 });
 
+const errorHandler = (returnCode) => {
+
+};
+
 const handleDiscovery = (event) => {
-  const { accessToken } = event.payload;
-  return request({
+  const {
+    accessToken,
+  } = event.payload;
+
+  const requestOptions = {
     method: 'GET',
     uri: `${endpoint}/devices`,
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
     json: true,
-  }).then((result) => {
-    const { returnCode, devices, error } = result;
-    const discoveredAppliances = [];
-    let index = 1;
-    if (returnCode === 0) {
-      for (const device of devices) {
-        if (!device.id) {
-          continue;
-        }
+  };
+  return request(requestOptions)
+    .then((result) => {
+      const {
+        returnCode,
+        devices,
+      } = result;
+      const discoveredAppliances = [];
+      let index = 1;
+      if (returnCode === 0) {
+        for (const device of devices) {
+          if (!device.id) {
+            continue;
+          }
 
-        let applianceTypes;
-        let actions = [
-          'turnOff',
-        ];
-        if (device.typeId === 3) {
-          actions = actions.concat([
-            'turnOn',
-          ]);
-          applianceTypes = [
-            'LIGHT',
+          let applianceTypes;
+          let actions = [
+            'turnOff',
           ];
-        } else {
-          applianceTypes = [
-            'SMARTLOCK',
-            'SWITCH',
-          ];
-          actions = actions.concat([
-            'getLockState',
-            'setLockState',
-          ]);
-        }
+          if (device.typeId === 3) {
+            actions = actions.concat([
+              'turnOn',
+            ]);
+            applianceTypes = [
+              'LIGHT',
+            ];
+          } else {
+            applianceTypes = [
+              'SMARTLOCK',
+              'SWITCH',
+            ];
+            actions = actions.concat([
+              'getLockState',
+              'setLockState',
+            ]);
+          }
 
-        const deviceName = device.name ? device.name : `Device ${index}`;
-        const typeId = device.typeId ? device.typeId : 'Unknown';
-        const typeName = device.typeName ? device.typeName : 'MyQ Device';
-        const online = device.online === true;
+          const deviceName = device.name ? device.name : `Device ${index}`;
+          const typeId = device.typeId ? device.typeId : 'Unknown';
+          const typeName = device.typeName ? device.typeName : 'MyQ Device';
+          const online = device.online === true;
 
-        const discoveredAppliance = {
-          applianceTypes,
-          applianceId: device.id,
-          manufacturerName: 'Chamberlain/LiftMaster',
-          modelName: typeName,
-          version: '1.00',
-          friendlyName: deviceName,
-          friendlyDescription: typeName,
-          isReachable: online,
-          actions,
-          additionalApplianceDetails: {
-            typeId,
-          },
-        };
-        if (deviceName !== device.name) {
-          index += 1;
+          const discoveredAppliance = {
+            applianceTypes,
+            applianceId: device.id,
+            manufacturerName: 'Chamberlain/LiftMaster',
+            modelName: typeName,
+            version: '1.00',
+            friendlyName: deviceName,
+            friendlyDescription: typeName,
+            isReachable: online,
+            actions,
+            additionalApplianceDetails: {
+              typeId,
+            },
+          };
+          if (deviceName !== device.name) {
+            index += 1;
+          }
+          discoveredAppliances.push(discoveredAppliance);
         }
-        discoveredAppliances.push(discoveredAppliance);
       }
-    }
-    log('DISCOVER', discoveredAppliances);
-    const header = createHeader(NAMESPACE_DISCOVERY, RESPONSE_DISCOVER);
-    const payload = {
-      discoveredAppliances,
-    };
-    return createDirective(header, payload);
-  }).catch((err) => {
-    log('handleDiscovery - Error', err);
-  });
+      log('DISCOVER', discoveredAppliances);
+      const header = createHeader(NAMESPACE_DISCOVERY, RESPONSE_DISCOVER);
+      const payload = {
+        discoveredAppliances,
+      };
+      return createDirective(header, payload);
+    })
+    .catch((err) => {
+      log('handleDiscovery - Error', err);
+    });
 };
 
 const handleUnsupportedControlOperation = () => {
@@ -151,7 +167,7 @@ const setState = (accessToken, id, typeId, state) => {
 
   console.log(`${endpoint}/${type}/state`);
 
-  return request({
+  const requestOptions = {
     method: 'PUT',
     uri: `${endpoint}/${type}/state`,
     headers: {
@@ -162,13 +178,19 @@ const setState = (accessToken, id, typeId, state) => {
       state,
     },
     json: true,
-  }).catch((err) => {
-    log('setState - Error', err);
-  });
+  };
+  return request(requestOptions)
+    .catch((err) => {
+      log('setState - Error', err);
+    });
 };
 
 const handleControlSetState = (event) => {
-  const { accessToken, appliance, lockState } = event.payload;
+  const {
+    accessToken,
+    appliance,
+    lockState,
+  } = event.payload;
   const state = lockState === 'LOCKED' ? 0 : 1;
   return setState(accessToken, appliance.applianceId, appliance.additionalApplianceDetails.typeId, state)
     .then((result) => {
@@ -180,13 +202,17 @@ const handleControlSetState = (event) => {
         };
         return createDirective(header, payload);
       }
-    }).catch((err) => {
+    })
+    .catch((err) => {
       log('handleControlSetState - Error', err);
     });
 };
 
 const handleControlTurnOn = (event) => {
-  const { accessToken, appliance } = event.payload;
+  const {
+    accessToken,
+    appliance,
+  } = event.payload;
   return setState(accessToken, appliance.applianceId, appliance.additionalApplianceDetails.typeId, 1)
     .then((result) => {
       log('OPEN', result);
@@ -195,13 +221,17 @@ const handleControlTurnOn = (event) => {
         const payload = {};
         return createDirective(header, payload);
       }
-    }).catch((err) => {
+    })
+    .catch((err) => {
       log('handleControlTurnOn - Error', err);
     });
 };
 
 const handleControlTurnOff = (event) => {
-  const { accessToken, appliance } = event.payload;
+  const {
+    accessToken,
+    appliance,
+  } = event.payload;
   return setState(accessToken, appliance.applianceId, appliance.additionalApplianceDetails.typeId, 0)
     .then((result) => {
       log('CLOSE', result);
@@ -210,7 +240,8 @@ const handleControlTurnOff = (event) => {
         const payload = {};
         return createDirective(header, payload);
       }
-    }).catch((err) => {
+    })
+    .catch((err) => {
       log('handleControlTurnOff - Error', err);
     });
 };
@@ -224,17 +255,20 @@ const handleControl = (event) => {
       return handleControlTurnOn(event);
     case REQUEST_TURN_OFF:
       return handleControlTurnOff(event);
-    default: {
+    default:
       log('Error', `Unsupported operation ${requestedName}`);
       const response = handleUnsupportedControlOperation();
       return response;
-    }
   }
 };
 
 const handleQueryGetState = (event) => {
-  const { accessToken, appliance } = event.payload;
-  return request({
+  const {
+    accessToken,
+    appliance,
+  } = event.payload;
+
+  const requestOptions = {
     method: 'GET',
     uri: `${endpoint}/door/state`,
     headers: {
@@ -244,19 +278,26 @@ const handleQueryGetState = (event) => {
       id: appliance.applianceId,
     },
     json: true,
-  }).then((result) => {
-    const { returnCode, doorState, error } = result;
-    if (returnCode === 0) {
-      const header = createHeader(NAMESPACE_QUERY, RESPONSE_GET_STATE);
-      const payload = {
-        lockState: doorState === 2 ? 'LOCKED' : 'UNLOCKED',
-      };
-      log('QUERY GET STATE', payload);
-      return createDirective(header, payload);
-    }
-  }).catch((err) => {
-    log('handleQueryGetState - Error', err);
-  });
+  };
+  return request(requestOptions)
+    .then((result) => {
+      const {
+        returnCode,
+        doorState,
+      } = result;
+      if (returnCode === 0) {
+        const header = createHeader(NAMESPACE_QUERY, RESPONSE_GET_STATE);
+        const payload = {
+          lockState: doorState === 2 ? 'LOCKED' : 'UNLOCKED',
+        };
+        log('QUERY GET STATE', payload);
+        return createDirective(header, payload);
+      }
+      return errorHandler(returnCode);
+    })
+    .catch((err) => {
+      log('handleQueryGetState - Error', err);
+    });
 };
 
 const handleUnsupportedQueryOperation = () => {
@@ -270,11 +311,10 @@ const handleQuery = (event) => {
   switch (requestedName) {
     case REQUEST_GET_STATE:
       return handleQueryGetState(event);
-    default: {
+    default:
       log('Error', `Unsupported operation ${requestedName}`);
       const response = handleUnsupportedQueryOperation();
       return response;
-    }
   }
 };
 
@@ -298,11 +338,10 @@ exports.handler = (event, context, callback) => {
         return handleControl(event);
       case NAMESPACE_QUERY:
         return handleQuery(event);
-      default: {
+      default:
         log('Error', `Unsupported namespace: ${requestedNamespace}`);
         const response = handleUnexpectedInfo(requestedNamespace);
         return callback(null, response);
-      }
     }
   } catch (error) {
     log('Handler - Error', error);
