@@ -23,7 +23,7 @@ const RESPONSE_GET_STATE = 'GetLockStateResponse';
 // errors
 const ERROR_UNSUPPORTED_OPERATION = 'UnsupportedOperationError';
 const ERROR_UNEXPECTED_INFO = 'UnexpectedInformationReceivedError';
-const ERROR_EXPIRED_ACCESS_TOKEN = 'ExpiredAccessTokenError';
+const ERROR_INVALID_ACCESS_TOKEN = 'InvalidAccessTokenError';
 
 // API
 const endpoint = 'https://myq.thomasmunduchira.com';
@@ -75,9 +75,9 @@ const handleUnexpectedInfo = (fault, callback) => {
   return callback(null, directive);
 };
 
-const handleExpiredAccessToken = (callback) => {
-  log('ExpiredAccessToken', {});
-  const header = createHeader(NAMESPACE_CONTROL, ERROR_EXPIRED_ACCESS_TOKEN);
+const handleInvalidAccessToken = (callback) => {
+  log('InvalidAccessToken', {});
+  const header = createHeader(NAMESPACE_CONTROL, ERROR_INVALID_ACCESS_TOKEN);
   const payload = {};
   const directive = createDirective(header, payload);
   return callback(null, directive);
@@ -85,8 +85,8 @@ const handleExpiredAccessToken = (callback) => {
 
 const errorHandler = (returnCode, callback) => {
   log(`ErrorHandler: ${returnCode}`, {});
-  if ([14, 17].includes(returnCode)) {
-    return handleExpiredAccessToken(callback);
+  if ([14, 16, 17].includes(returnCode)) {
+    return handleInvalidAccessToken(callback);
   }
   return callback(null, null);
 };
