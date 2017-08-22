@@ -118,71 +118,69 @@ const handleDiscovery = (event, callback) => {
   };
   return request(requestOptions)
     .then((result) => {
-      if (!result) {
-        return handleDependentServiceUnavailable(callback);
-      }
-
-      const {
-        returnCode,
-        devices,
-      } = result;
-
-      if (returnCode !== 0) {
-        return errorHandler(returnCode, callback);
-      }
-
       const discoveredAppliances = [];
-      let index = 1;
-      for (const device of devices) {
-        if (!device.id) {
-          continue;
+      if (result) {
+        const {
+          returnCode,
+          devices,
+        } = result;
+
+        if (returnCode !== 0) {
+          return errorHandler(returnCode, callback);
         }
 
-        let applianceTypes;
-        let actions = [
-          'turnOff',
-        ];
-        if (device.typeId === 3) {
-          actions = actions.concat([
-            'turnOn',
-          ]);
-          applianceTypes = [
-            'LIGHT',
+        let index = 1;
+        for (const device of devices) {
+          if (!device.id) {
+            continue;
+          }
+
+          let applianceTypes;
+          let actions = [
+            'turnOff',
           ];
-        } else {
-          applianceTypes = [
-            'SMARTLOCK',
-            'SWITCH',
-          ];
-          actions = actions.concat([
-            'getLockState',
-            'setLockState',
-          ]);
-        }
+          if (device.typeId === 3) {
+            actions = actions.concat([
+              'turnOn',
+            ]);
+            applianceTypes = [
+              'LIGHT',
+            ];
+          } else {
+            applianceTypes = [
+              'SMARTLOCK',
+              'SWITCH',
+            ];
+            actions = actions.concat([
+              'getLockState',
+              'setLockState',
+            ]);
+          }
 
-        const deviceName = device.name ? device.name : `Device ${index}`;
-        const typeId = device.typeId ? device.typeId : 'Unknown';
-        const typeName = device.typeName ? device.typeName : 'MyQ Device';
-        const online = device.online === true;
+          const deviceName = device.name ? device.name : `Device ${index}`;
+          const typeId = device.typeId ? device.typeId : 'Unknown';
+          const typeName = device.typeName ? device.typeName : 'MyQ Device';
+          const online = device.online === true;
 
-        const discoveredAppliance = {
-          applianceTypes,
-          applianceId: device.id,
-          manufacturerName: 'Chamberlain/LiftMaster',
-          modelName: typeName,
-          version: '1.00',
-          friendlyName: deviceName,
-          friendlyDescription: typeName,
-          isReachable: online,
-          actions,
-          additionalApplianceDetails: {
-            typeId,
-          },
-        };
-        if (deviceName !== device.name) {
-          index += 1;
+          const discoveredAppliance = {
+            applianceTypes,
+            applianceId: device.id,
+            manufacturerName: 'Chamberlain/LiftMaster',
+            modelName: typeName,
+            version: '1.00',
+            friendlyName: deviceName,
+            friendlyDescription: typeName,
+            isReachable: online,
+            actions,
+            additionalApplianceDetails: {
+              typeId,
+            },
+          };
+          if (deviceName !== device.name) {
+            index += 1;
+          }
+          discoveredAppliances.push(discoveredAppliance);
         }
-        discoveredAppliances.push(discoveredAppliance);
       }
       log('DISCOVER', discoveredAppliances);
       const header = createHeader(NAMESPACE_DISCOVERY, RESPONSE_DISCOVER);
@@ -194,10 +192,14 @@ const handleDiscovery = (event, callback) => {
     })
     .catch((err) => {
       log('handleDiscovery - Error', err);
-      return handleDependentServiceUnavailable(callback);
+      const header = createHeader(NAMESPACE_DISCOVERY, RESPONSE_DISCOVER);
+      const payload = {
+        discoveredAppliances: [],
+      };
+      const directive = createDirective(header, payload);
+      return callback(null, directive);
     });
 };
-
 
 const setState = (accessToken, id, typeId, state, callback) => {
   let type;
