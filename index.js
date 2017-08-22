@@ -1,5 +1,7 @@
 const request = require('request-promise-native');
 
+const config = require('./config');
+
 // namespaces
 const NAMESPACE_DISCOVERY = 'Alexa.ConnectedHome.Discovery';
 const NAMESPACE_CONTROL = 'Alexa.ConnectedHome.Control';
@@ -24,9 +26,7 @@ const RESPONSE_GET_STATE = 'GetLockStateResponse';
 const ERROR_UNSUPPORTED_OPERATION = 'UnsupportedOperationError';
 const ERROR_UNEXPECTED_INFO = 'UnexpectedInformationReceivedError';
 const ERROR_INVALID_ACCESS_TOKEN = 'InvalidAccessTokenError';
-
-// API
-const endpoint = 'https://myq.thomasmunduchira.com';
+const ERROR_DEPENDENT_SERVICE_UNAVAILABLE = 'DependentServiceUnavailableError';
 
 // support functions
 const log = (title, message) => {
@@ -83,12 +83,23 @@ const handleInvalidAccessToken = (callback) => {
   return callback(null, directive);
 };
 
+const handleDependentServiceUnavailable = (callback) => {
+  log('DependentServiceUnavailable', {});
+  const header = createHeader(NAMESPACE_CONTROL, ERROR_DEPENDENT_SERVICE_UNAVAILABLE);
+  const payload = {
+    dependentServiceName: 'MyQ Service',
+  };
+  const directive = createDirective(header, payload);
+  return callback(null, directive);
+};
+
 const errorHandler = (returnCode, callback) => {
   log(`ErrorHandler: ${returnCode}`, {});
   if ([14, 16, 17].includes(returnCode)) {
     return handleInvalidAccessToken(callback);
   }
-  return callback(null, null);
+
+  return handleDependentServiceUnavailable(callback);
 };
 
 const handleDiscovery = (event, callback) => {
@@ -98,14 +109,19 @@ const handleDiscovery = (event, callback) => {
 
   const requestOptions = {
     method: 'GET',
-    uri: `${endpoint}/devices`,
+    uri: `${config.endpoint}/devices`,
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
     json: true,
+    timeout: config.requestTimeout,
   };
   return request(requestOptions)
     .then((result) => {
+      if (!result) {
+        return handleDependentServiceUnavailable(callback);
+      }
+
       const {
         returnCode,
         devices,
@@ -178,11 +194,12 @@ const handleDiscovery = (event, callback) => {
     })
     .catch((err) => {
       log('handleDiscovery - Error', err);
+      return handleDependentServiceUnavailable(callback);
     });
 };
 
 
-const setState = (accessToken, id, typeId, state) => {
+const setState = (accessToken, id, typeId, state, callback) => {
   let type;
   console.log('SETTING STATE', typeId, id, state);
   if (typeId === '3') {
@@ -190,13 +207,13 @@ const setState = (accessToken, id, typeId, state) => {
   } else {
     type = 'door';
     if (state === 1) {
-      return handleUnsupportedOperation();
+      return handleUnsupportedOperation(callback);
     }
   }
 
   const requestOptions = {
     method: 'PUT',
-    uri: `${endpoint}/${type}/state`,
+    uri: `${config.endpoint}/${type}/state`,
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
@@ -205,11 +222,9 @@ const setState = (accessToken, id, typeId, state) => {
       state,
     },
     json: true,
+    timeout: config.requestTimeout,
   };
-  return request(requestOptions)
-    .catch((err) => {
-      log('setState - Error', err);
-    });
+  return request(requestOptions);
 };
 
 const handleControlSetState = (event, callback) => {
@@ -220,9 +235,13 @@ const handleControlSetState = (event, callback) => {
   } = event.payload;
   const state = lockState === 'LOCKED' ? 0 : 1;
 
-  return setState(accessToken, appliance.applianceId, appliance.additionalApplianceDetails.typeId, state)
+  return setState(accessToken, appliance.applianceId, appliance.additionalApplianceDetails.typeId, state, callback)
     .then((result) => {
       log('CHANGE', result);
+      if (!result) {
+        return handleDependentServiceUnavailable(callback);
+      }
+
       const {
         returnCode,
       } = result;
@@ -240,6 +259,7 @@ const handleControlSetState = (event, callback) => {
     })
     .catch((err) => {
       log('handleControlSetState - Error', err);
+      return handleDependentServiceUnavailable(callback);
     });
 };
 
@@ -249,9 +269,13 @@ const handleControlTurnOn = (event, callback) => {
     appliance,
   } = event.payload;
 
-  return setState(accessToken, appliance.applianceId, appliance.additionalApplianceDetails.typeId, 1)
+  return setState(accessToken, appliance.applianceId, appliance.additionalApplianceDetails.typeId, 1, callback)
     .then((result) => {
       log('OPEN', result);
+      if (!result) {
+        return handleDependentServiceUnavailable(callback);
+      }
+
       const {
         returnCode,
       } = result;
@@ -267,6 +291,7 @@ const handleControlTurnOn = (event, callback) => {
     })
     .catch((err) => {
       log('handleControlTurnOn - Error', err);
+      return handleDependentServiceUnavailable(callback);
     });
 };
 
@@ -276,9 +301,13 @@ const handleControlTurnOff = (event, callback) => {
     appliance,
   } = event.payload;
 
-  return setState(accessToken, appliance.applianceId, appliance.additionalApplianceDetails.typeId, 0)
+  return setState(accessToken, appliance.applianceId, appliance.additionalApplianceDetails.typeId, 0, callback)
     .then((result) => {
       log('CLOSE', result);
+      if (!result) {
+        return handleDependentServiceUnavailable(callback);
+      }
+
       const {
         returnCode,
       } = result;
@@ -294,6 +323,7 @@ const handleControlTurnOff = (event, callback) => {
     })
     .catch((err) => {
       log('handleControlTurnOff - Error', err);
+      return handleDependentServiceUnavailable(callback);
     });
 };
 
@@ -321,7 +351,7 @@ const handleQueryGetState = (event, callback) => {
 
   const requestOptions = {
     method: 'GET',
-    uri: `${endpoint}/door/state`,
+    uri: `${config.endpoint}/door/state`,
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
@@ -329,9 +359,14 @@ const handleQueryGetState = (event, callback) => {
       id: appliance.applianceId,
     },
     json: true,
+    timeout: config.requestTimeout,
   };
   return request(requestOptions)
     .then((result) => {
+      if (!result) {
+        return handleDependentServiceUnavailable(callback);
+      }
+
       const {
         returnCode,
         doorState,
@@ -351,6 +386,7 @@ const handleQueryGetState = (event, callback) => {
     })
     .catch((err) => {
       log('handleQueryGetState - Error', err);
+      return handleDependentServiceUnavailable(callback);
     });
 };
 
