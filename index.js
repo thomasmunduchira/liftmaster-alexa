@@ -35,7 +35,7 @@ const log = (title, message) => {
 };
 
 const createMessageId = () => {
-  // generate random message ID
+  // generates random message ID
   let d = new Date()
     .getTime();
   const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -48,7 +48,7 @@ const createMessageId = () => {
 };
 
 const createHeader = (namespace, name) => ({
-  // generate header according to what the Alexa service expects
+  // generates header according to what the Alexa service expects
   messageId: createMessageId(),
   namespace,
   name,
@@ -56,7 +56,7 @@ const createHeader = (namespace, name) => ({
 });
 
 const createDirective = (header, payload) => ({
-  // generate directive according to what the Alexa service expects
+  // generates directive according to what the Alexa service expects
   header,
   payload,
 });
@@ -114,7 +114,7 @@ const errorHandler = (returnCode, callback) => {
 };
 
 const handleDiscovery = (event, callback) => {
-  // handle discovery operation
+  // handles discovery operation
   const {
     accessToken,
   } = event.payload;
@@ -138,7 +138,7 @@ const handleDiscovery = (event, callback) => {
         } = result;
 
         if (returnCode !== 0) {
-          // catch errors
+          // catch error
           return errorHandler(returnCode, callback);
         }
 
@@ -220,7 +220,7 @@ const handleDiscovery = (event, callback) => {
 };
 
 const setState = (accessToken, id, typeId, state, callback) => {
-  // find type of device
+  // finds type of device
   let type;
   console.log('SETTING STATE', typeId, id, state);
   if (typeId === '3') {
@@ -270,7 +270,7 @@ const handleControlSetState = (event, callback) => {
       } = result;
 
       if (returnCode !== 0) {
-        // catch errors
+        // catch error
         return errorHandler(returnCode, callback);
       }
 
@@ -306,7 +306,7 @@ const handleControlTurnOn = (event, callback) => {
       } = result;
 
       if (returnCode !== 0) {
-        // catch errors
+        // catch error
         return errorHandler(returnCode, callback);
       }
 
@@ -340,7 +340,7 @@ const handleControlTurnOff = (event, callback) => {
       } = result;
 
       if (returnCode !== 0) {
-        // catch errors
+        // catch error
         return errorHandler(returnCode, callback);
       }
 
@@ -404,7 +404,7 @@ const handleQueryGetState = (event, callback) => {
       } = result;
 
       if (returnCode !== 0) {
-        // catch errors
+        // catch error
         return errorHandler(returnCode, callback);
       }
 
@@ -423,7 +423,7 @@ const handleQueryGetState = (event, callback) => {
 };
 
 const handleQuery = (event, callback) => {
-  // handle query operations
+  // handles query operations
   const requestedName = event.header.name;
 
   switch (requestedName) {
@@ -437,7 +437,7 @@ const handleQuery = (event, callback) => {
 
 // entry
 exports.handler = (event, context, callback) => {
-  // handle all operations
+  // handles all operations
   log('Received Directive', event);
   const requestedNamespace = event.header.namespace;
 
