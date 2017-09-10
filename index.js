@@ -30,10 +30,12 @@ const ERROR_DEPENDENT_SERVICE_UNAVAILABLE = 'DependentServiceUnavailableError';
 
 // support functions
 const log = (title, message) => {
+  // title: string, message: object
   console.log(`**** ${title}:`, JSON.stringify(message));
 };
 
 const createMessageId = () => {
+  // generate random message ID
   let d = new Date()
     .getTime();
   const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -46,6 +48,7 @@ const createMessageId = () => {
 };
 
 const createHeader = (namespace, name) => ({
+  // generate header according to what the Alexa service expects
   messageId: createMessageId(),
   namespace,
   name,
@@ -53,11 +56,13 @@ const createHeader = (namespace, name) => ({
 });
 
 const createDirective = (header, payload) => ({
+  // generate directive according to what the Alexa service expects
   header,
   payload,
 });
 
 const handleUnsupportedOperation = (callback) => {
+  // in case operation is not supported or not allowed
   log('UnsupportedOperation', {});
   const header = createHeader(NAMESPACE_CONTROL, ERROR_UNSUPPORTED_OPERATION);
   const payload = {};
@@ -66,6 +71,7 @@ const handleUnsupportedOperation = (callback) => {
 };
 
 const handleUnexpectedInfo = (fault, callback) => {
+  // in case a request with unexpected info comes through
   log('UnexpectedInfo', {});
   const header = createHeader(NAMESPACE_CONTROL, ERROR_UNEXPECTED_INFO);
   const payload = {
@@ -76,6 +82,7 @@ const handleUnexpectedInfo = (fault, callback) => {
 };
 
 const handleInvalidAccessToken = (callback) => {
+  // in case user access token is invalid/expired
   log('InvalidAccessToken', {});
   const header = createHeader(NAMESPACE_CONTROL, ERROR_INVALID_ACCESS_TOKEN);
   const payload = {};
@@ -84,6 +91,7 @@ const handleInvalidAccessToken = (callback) => {
 };
 
 const handleDependentServiceUnavailable = (callback) => {
+  // in case MyQ service is down
   log('DependentServiceUnavailable', {});
   const header = createHeader(NAMESPACE_CONTROL, ERROR_DEPENDENT_SERVICE_UNAVAILABLE);
   const payload = {
@@ -94,15 +102,19 @@ const handleDependentServiceUnavailable = (callback) => {
 };
 
 const errorHandler = (returnCode, callback) => {
+  // error handler for all requests going to endpoint
   log(`ErrorHandler: ${returnCode}`, {});
   if ([14, 16, 17].includes(returnCode)) {
+    // 14, 16, 17 all mean invalid access token
     return handleInvalidAccessToken(callback);
   }
 
+  // default error
   return handleDependentServiceUnavailable(callback);
 };
 
 const handleDiscovery = (event, callback) => {
+  // handle discovery operation
   const {
     accessToken,
   } = event.payload;
@@ -126,15 +138,18 @@ const handleDiscovery = (event, callback) => {
         } = result;
 
         if (returnCode !== 0) {
+          // catch errors
           return errorHandler(returnCode, callback);
         }
 
         let index = 1;
         for (const device of devices) {
           if (!device.id) {
+            // all devices should have IDs
             continue;
           }
 
+          // generate possible actions for device
           let applianceTypes;
           let actions = [
             'turnOff',
@@ -157,11 +172,13 @@ const handleDiscovery = (event, callback) => {
             ]);
           }
 
+          // assign default values if not found in endpoint response
           const deviceName = device.name ? device.name : `Device ${index}`;
           const typeId = device.typeId ? device.typeId : 'Unknown';
           const typeName = device.typeName ? device.typeName : 'MyQ Device';
           const online = device.online === true;
 
+          // generate device data according to what the Alexa service expects
           const discoveredAppliance = {
             applianceTypes,
             applianceId: device.id,
@@ -191,6 +208,7 @@ const handleDiscovery = (event, callback) => {
       return callback(null, directive);
     })
     .catch((err) => {
+      // discovery should never return an error: https://developer.amazon.com/public/solutions/alexa/alexa-skills-kit/docs/smart-home-skill-api-reference#discovery-messages
       log('handleDiscovery - Error', err);
       const header = createHeader(NAMESPACE_DISCOVERY, RESPONSE_DISCOVER);
       const payload = {
@@ -202,6 +220,7 @@ const handleDiscovery = (event, callback) => {
 };
 
 const setState = (accessToken, id, typeId, state, callback) => {
+  // find type of device
   let type;
   console.log('SETTING STATE', typeId, id, state);
   if (typeId === '3') {
@@ -209,6 +228,7 @@ const setState = (accessToken, id, typeId, state, callback) => {
   } else {
     type = 'door';
     if (state === 1) {
+      // doors cannot be opened through this skill due to a lack of pin support for smart home skills
       return handleUnsupportedOperation(callback);
     }
   }
@@ -241,6 +261,7 @@ const handleControlSetState = (event, callback) => {
     .then((result) => {
       log('CHANGE', result);
       if (!result) {
+        // MyQ service down
         return handleDependentServiceUnavailable(callback);
       }
 
@@ -249,6 +270,7 @@ const handleControlSetState = (event, callback) => {
       } = result;
 
       if (returnCode !== 0) {
+        // catch errors
         return errorHandler(returnCode, callback);
       }
 
@@ -275,6 +297,7 @@ const handleControlTurnOn = (event, callback) => {
     .then((result) => {
       log('OPEN', result);
       if (!result) {
+        // MyQ service down
         return handleDependentServiceUnavailable(callback);
       }
 
@@ -283,6 +306,7 @@ const handleControlTurnOn = (event, callback) => {
       } = result;
 
       if (returnCode !== 0) {
+        // catch errors
         return errorHandler(returnCode, callback);
       }
 
@@ -307,6 +331,7 @@ const handleControlTurnOff = (event, callback) => {
     .then((result) => {
       log('CLOSE', result);
       if (!result) {
+        // MyQ service down
         return handleDependentServiceUnavailable(callback);
       }
 
@@ -315,6 +340,7 @@ const handleControlTurnOff = (event, callback) => {
       } = result;
 
       if (returnCode !== 0) {
+        // catch errors
         return errorHandler(returnCode, callback);
       }
 
@@ -330,6 +356,7 @@ const handleControlTurnOff = (event, callback) => {
 };
 
 const handleControl = (event, callback) => {
+  // handles control operations
   const requestedName = event.header.name;
 
   switch (requestedName) {
@@ -346,6 +373,7 @@ const handleControl = (event, callback) => {
 };
 
 const handleQueryGetState = (event, callback) => {
+  // only doors can be queried as of this time
   const {
     accessToken,
     appliance,
@@ -366,6 +394,7 @@ const handleQueryGetState = (event, callback) => {
   return request(requestOptions)
     .then((result) => {
       if (!result) {
+        // MyQ service down
         return handleDependentServiceUnavailable(callback);
       }
 
@@ -375,6 +404,7 @@ const handleQueryGetState = (event, callback) => {
       } = result;
 
       if (returnCode !== 0) {
+        // catch errors
         return errorHandler(returnCode, callback);
       }
 
@@ -393,6 +423,7 @@ const handleQueryGetState = (event, callback) => {
 };
 
 const handleQuery = (event, callback) => {
+  // handle query operations
   const requestedName = event.header.name;
 
   switch (requestedName) {
@@ -406,6 +437,7 @@ const handleQuery = (event, callback) => {
 
 // entry
 exports.handler = (event, context, callback) => {
+  // handle all operations
   log('Received Directive', event);
   const requestedNamespace = event.header.namespace;
 
@@ -425,5 +457,6 @@ exports.handler = (event, context, callback) => {
     log('Handler - Error', error);
   }
 
+  // in case something goes wrong
   return callback(null, null);
 };
