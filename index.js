@@ -142,6 +142,8 @@ const handleQuery = (event, callback) => {
   }
 };
 
+const handleNotice = (event, callback) => errors.handleDependentServiceUnavailable(callback);
+
 // entry
 exports.handler = (event, context, callback) => {
   // handles all operations
@@ -151,11 +153,11 @@ exports.handler = (event, context, callback) => {
   try {
     switch (requestedNamespace) {
       case constants.NAMESPACE_DISCOVERY:
-        return handleDiscovery(event, callback);
+        return handleNotice(event, callback);
       case constants.NAMESPACE_CONTROL:
-        return handleControl(event, callback);
+        return handleNotice(event, callback);
       case constants.NAMESPACE_QUERY:
-        return handleQuery(event, callback);
+        return handleNotice(event, callback);
       default:
         utils.log(`Error: Unsupported namespace ${requestedNamespace}`, {});
         return errors.handleUnexpectedInfo(requestedNamespace, callback);
