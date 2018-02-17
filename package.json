@@ -19,7 +19,7 @@
   },
   "homepage": "https://github.com/thomasmunduchira/myq-smart-home-alexa#readme",
   "dependencies": {
-    "request": "2.81.0",
+    "request": "2.82.0",
     "request-promise-native": "1.0.4"
   },
   "devDependencies": {
